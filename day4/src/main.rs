@@ -1,23 +1,44 @@
-use std::fs::read_to_string;
+use std::{collections::HashMap, fs::read_to_string};
 
 fn main() {
     let input = read_to_string("input.txt").unwrap();
+    let mut card_counts: HashMap<usize, usize> = HashMap::new();
     let total_points: usize = input
         .lines()
-        .map(|line| {
+        .enumerate()
+        .map(|(idx, line)| {
+            let card_number = idx + 1;
+            card_counts
+                .entry(card_number)
+                .and_modify(|count| *count += 1)
+                .or_insert(1);
+            let card_count = card_counts[&card_number];
             let (winning_numbers, found_numbers) = parse_line(line);
-            get_line_points(winning_numbers, found_numbers)
+            let line_matches = get_line_matches(winning_numbers, found_numbers);
+            for (idx, _) in vec![0; line_matches].iter().enumerate() {
+                let card_number_to_update = card_number + idx + 1;
+                card_counts
+                    .entry(card_number_to_update)
+                    .and_modify(|count| *count += card_count)
+                    .or_insert(card_count);
+            }
+            get_line_points(line_matches)
         })
         .sum();
     println!("Total scratchcard points: {total_points}");
+    let total_cards: usize = card_counts.values().sum();
+    println!("Total number of scratchcards: {total_cards}");
 }
 
-fn get_line_points(winning_numbers: Vec<u8>, found_numbers: Vec<u8>) -> usize {
-    let matches = (found_numbers
+fn get_line_matches(winning_numbers: Vec<u8>, found_numbers: Vec<u8>) -> usize {
+    return (found_numbers
         .iter()
         .filter(|number| winning_numbers.contains(number))
         .collect::<Vec<&u8>>())
     .len();
+}
+
+fn get_line_points(matches: usize) -> usize {
     if matches == 0 {
         return 0;
     }
