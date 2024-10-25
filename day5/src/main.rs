@@ -18,21 +18,40 @@ fn main() {
         let map_strings: Vec<&str> = lines.by_ref().take_while(|line| *line != "").collect();
         map_vecs.push(map_strings);
     }
-    let location_numbers: Vec<i64> = seed_numbers
+    let map_vecs = map_vecs.iter().map(parse_map_vec).collect();
+
+    let part_one_location_numbers: Vec<i64> = seed_numbers
         .iter()
         .map(|seed_number| seed_number_to_location_number(*seed_number, &map_vecs))
         .collect();
-    let min_location_number = location_numbers.iter().min().expect("No location numbers");
-    println!("Lowest location number: {min_location_number}");
+    let part_one_min_location_number = part_one_location_numbers.iter().min().unwrap();
+    println!("Part one lowest location number: {part_one_min_location_number}");
+
+    let mut part_two_min_location_number = i64::MAX;
+    let seed_numbers_range_pairs = seed_numbers.chunks(2);
+    for pair in seed_numbers_range_pairs {
+        println!("pair {:?}", pair);
+        let start = pair[0];
+        let len = pair[1];
+        let seeds: Vec<_> = (start..(start + len)).collect();
+        let location_numbers: Vec<i64> = seeds
+            .iter()
+            .map(|seed_number| seed_number_to_location_number(*seed_number, &map_vecs))
+            .collect();
+        let min_location_number = location_numbers.iter().min().unwrap();
+        if *min_location_number < part_two_min_location_number {
+            part_two_min_location_number = *min_location_number;
+        }
+    }
+    println!("Part two lowest location number: {part_two_min_location_number}");
 }
 
-fn seed_number_to_location_number(seed_number: i64, map_vecs: &Vec<Vec<&str>>) -> i64 {
+fn seed_number_to_location_number(seed_number: i64, map_vecs: &Vec<Vec<MapEntry>>) -> i64 {
     let mut map_result = seed_number;
     'map_vecs: for map in map_vecs {
-        let map = parse_map_vec(map);
         for entry in map {
             let (destination_range_start, source_range_start, range_len) = entry;
-            if map_result >= source_range_start && map_result < (source_range_start + range_len) {
+            if map_result >= *source_range_start && map_result < (source_range_start + range_len) {
                 let offset = destination_range_start - source_range_start;
                 map_result = map_result + offset;
                 continue 'map_vecs;
