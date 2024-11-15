@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fs::read_to_string};
 
+#[derive(Clone)]
 struct Node {
     id: String,
     left: String,
@@ -10,27 +11,51 @@ fn main() {
     let input = read_to_string("input2.txt").unwrap();
     let lines: Vec<&str> = input.lines().collect();
     let instructions = *lines.first().unwrap();
-    let mut nodes: HashMap<String, Node> = HashMap::new();
-    lines[2..]
+    let mut nodes_map: HashMap<String, Node> = HashMap::new();
+    let nodes: Vec<Node> = lines[2..].iter().map(parse_str_to_node).collect();
+    nodes.iter().for_each(|node| {
+        nodes_map.insert(node.id.clone(), node.clone());
+    });
+    let start_nodes: Vec<&Node> = nodes
         .iter()
-        .map(parse_str_to_node)
-        .for_each(|node| {
-            nodes.insert(node.id.clone(), node);
-        });
-    let mut step_count = 0;
-    let mut current = "AAA";
-    while current != "ZZZ" {
-        let node = nodes.get(current).unwrap();
-        for char in instructions.chars() {
-            step_count += 1;
-            if char == 'L' {
-                current = &nodes.get(&node.left).unwrap().id;
-            } else {
-                current = &nodes.get(&node.right).unwrap().id;
+        .filter(|node| (**node).id.ends_with('A'))
+        .collect();
+    let counts: Vec<_> = start_nodes.iter().map(|node| {
+        let mut current = node.id.as_str();
+        let mut step_count: u64 = 0;
+        'main_loop: loop {
+            for char in instructions.chars() {
+                if current.ends_with('Z') {
+                    break 'main_loop;
+                }
+                step_count += 1;
+                if char == 'L' {
+                    current = &nodes_map.get(current).unwrap().left;
+                } else {
+                    current = &nodes_map.get(current).unwrap().right;
+                }
             }
         }
-    }
+        step_count
+    }).collect();
+    let step_count = lcm(counts.as_slice());
     println!("Step count {step_count}");
+}
+
+fn lcm(nums: &[u64]) -> u64 {
+    if nums.len() == 1 {
+        return nums[0];
+    }
+    let a = nums[0];
+    let b = lcm(&nums[1..]);
+    return a * b / gcd(a, b);
+}
+
+fn gcd(a: u64, b: u64) -> u64 {
+    if b == 0 {
+        return a;
+    }
+    return gcd(b, a % b);
 }
 
 fn parse_str_to_node(str: &&str) -> Node {
