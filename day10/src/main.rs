@@ -1,4 +1,4 @@
-use std::fs::read_to_string;
+use std::{collections::HashSet, fs::read_to_string};
 
 enum PipePosition {
     TopLeftCorner,
@@ -38,6 +38,84 @@ fn main() {
     }
     let steps_to_furthest_point = loop_indices.len() / 2;
     println!("Steps to furthest point {steps_to_furthest_point}");
+    println!("{:?}", loop_indices);
+
+    let mut indices_enclosed_by_and_next_to_loop: HashSet<usize> = HashSet::new();
+    for (idx, loop_idx) in loop_indices.iter().take(loop_indices.len() - 1).enumerate() {
+        let next_idx = loop_indices[idx + 1];
+        let next_idx_direction = if loop_idx >= &line_len && loop_idx - line_len == next_idx {
+            "above"
+        } else if loop_idx + 1 == next_idx {
+            "right"
+        } else if loop_idx + line_len == next_idx {
+            "below"
+        } else {
+            "left"
+        };
+        println!("{next_idx_direction}");
+        // Clockwise loop
+        let idx_to_check = match next_idx_direction {
+            "above" => loop_idx + 1,
+            "right" => loop_idx + line_len,
+            "below" => loop_idx - 1,
+            "left" => loop_idx - line_len,
+            _ => panic!("not a valid direction"),
+        };
+        // Counter-clockwise loop
+        //let idx_to_check = match next_idx_direction {
+        //    "above" => loop_idx - 1,
+        //    "right" => loop_idx - line_len,
+        //    "below" => loop_idx + 1,
+        //    "left" => loop_idx + line_len,
+        //    _ => panic!("not a valid direction"),
+        //};
+        if !loop_indices.contains(&idx_to_check) {
+            indices_enclosed_by_and_next_to_loop.insert(idx_to_check);
+        }
+    }
+    println!(
+        "indices_enclosed_by_and_next_to_loop: {:?}",
+        indices_enclosed_by_and_next_to_loop
+    );
+    let indices_enclosed_by_and_next_to_loop_vec: Vec<usize> = indices_enclosed_by_and_next_to_loop.into_iter().collect();
+    let result = find_surrounding_indices(&indices_enclosed_by_and_next_to_loop_vec, &loop_indices, line_len);
+    //let result: HashSet<usize> = result.into_iter().collect();
+    println!("result {:?}", result.len());
+}
+
+fn find_surrounding_indices(
+    current_indices: &Vec<usize>,
+    non_valid_indices: &Vec<usize>,
+    line_len: usize,
+) -> Vec<usize> {
+    println!("current_indices {:?}", current_indices);
+    println!("loop_indices {:?}", non_valid_indices);
+    let mut indices: Vec<usize> = vec![];
+    for idx in current_indices {
+        let above = idx - 1;
+        let right = idx - line_len;
+        let below = idx + 1;
+        let left = idx + line_len;
+        if !non_valid_indices.contains(&above) && !current_indices.contains(&above) {
+            indices.push(above);
+        }
+        if !non_valid_indices.contains(&right) && !current_indices.contains(&right) {
+            indices.push(right);
+        }
+        if !non_valid_indices.contains(&below) && !current_indices.contains(&below) {
+            indices.push(below);
+        }
+        if !non_valid_indices.contains(&left) && !current_indices.contains(&left) {
+            indices.push(left);
+        }
+    }
+    let indices: HashSet<usize> = indices.into_iter().collect();
+    let indices: Vec<usize> = indices.into_iter().collect();
+    if indices.is_empty() {
+        return (*current_indices).clone();
+    }
+    println!("indices {:?}", indices);
+    return [current_indices.clone(), find_surrounding_indices(&indices, &[non_valid_indices.clone(), current_indices.clone()].concat(), line_len)].concat();
 }
 
 fn get_pipe_position(current_idx: usize, line_len: usize, pipes_len: usize) -> PipePosition {
