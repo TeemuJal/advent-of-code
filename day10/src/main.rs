@@ -12,6 +12,11 @@ enum PipePosition {
     Middle,
 }
 
+enum LoopDirection {
+    Clockwise,
+    AntiClockwise,
+}
+
 fn main() {
     let input = read_to_string("input3.txt").unwrap();
     let line_len = input.lines().nth(0).unwrap().len();
@@ -38,8 +43,52 @@ fn main() {
     }
     let steps_to_furthest_point = loop_indices.len() / 2;
     println!("Steps to furthest point {steps_to_furthest_point}");
-    println!("{:?}", loop_indices);
 
+    let indices_enclosed_by_and_next_to_loop =
+        get_indices_enclosed_by_and_next_to_loop(&loop_indices, line_len, LoopDirection::Clockwise);
+    let any_idx_on_the_edge = if indices_enclosed_by_and_next_to_loop.is_ok() {
+        indices_enclosed_by_and_next_to_loop
+            .as_ref()
+            .unwrap()
+            .iter()
+            .any(|idx| {
+                let pipe_pos = get_pipe_position(*idx, line_len, pipes_len);
+                match pipe_pos {
+                    PipePosition::Middle => false,
+                    _ => true,
+                }
+            })
+    } else {
+        false
+    };
+    let indices_enclosed_by_and_next_to_loop = if indices_enclosed_by_and_next_to_loop.is_err()
+        || indices_enclosed_by_and_next_to_loop.as_ref().unwrap().len() > loop_indices.len()
+        || any_idx_on_the_edge
+    {
+        get_indices_enclosed_by_and_next_to_loop(
+            &loop_indices,
+            line_len,
+            LoopDirection::AntiClockwise,
+        )
+        .unwrap()
+    } else {
+        indices_enclosed_by_and_next_to_loop.unwrap()
+    };
+
+    let result = find_surrounding_indices(
+        &indices_enclosed_by_and_next_to_loop,
+        &loop_indices,
+        line_len,
+    )
+    .len();
+    println!("Number of tiles enclosed by the loop {:?}", result);
+}
+
+fn get_indices_enclosed_by_and_next_to_loop(
+    loop_indices: &Vec<usize>,
+    line_len: usize,
+    loop_dir: LoopDirection,
+) -> Result<Vec<usize>, &'static str> {
     let mut indices_enclosed_by_and_next_to_loop: HashSet<usize> = HashSet::new();
     for (idx, loop_idx) in loop_indices.iter().take(loop_indices.len() - 1).enumerate() {
         let next_idx = loop_indices[idx + 1];
@@ -52,35 +101,86 @@ fn main() {
         } else {
             "left"
         };
-        println!("{next_idx_direction}");
-        // Clockwise loop
-        let idx_to_check = match next_idx_direction {
-            "above" => loop_idx + 1,
-            "right" => loop_idx + line_len,
-            "below" => loop_idx - 1,
-            "left" => loop_idx - line_len,
-            _ => panic!("not a valid direction"),
+        let prev_idx = if idx > 0 {
+            loop_indices[idx - 1]
+        } else {
+            usize::MAX
         };
-        // Counter-clockwise loop
-        //let idx_to_check = match next_idx_direction {
-        //    "above" => loop_idx - 1,
-        //    "right" => loop_idx - line_len,
-        //    "below" => loop_idx + 1,
-        //    "left" => loop_idx + line_len,
-        //    _ => panic!("not a valid direction"),
-        //};
+        let cur_idx_direction = if prev_idx == usize::MAX {
+            "none"
+        } else if prev_idx >= line_len && prev_idx - line_len == *loop_idx {
+            "above"
+        } else if prev_idx + 1 == *loop_idx {
+            "right"
+        } else if prev_idx + line_len == *loop_idx {
+            "below"
+        } else {
+            "left"
+        };
+        let (idx_to_check, idx_to_check2) = match loop_dir {
+            LoopDirection::Clockwise => {
+                let idx1 = match next_idx_direction {
+                    "above" => loop_idx + 1,
+                    "right" => loop_idx + line_len,
+                    "below" => loop_idx - 1,
+                    "left" => {
+                        if loop_idx.checked_sub(line_len).is_none() {
+                            return Err("wrong loop direction");
+                        }
+                        loop_idx - line_len
+                    }
+                    _ => *loop_idx,
+                };
+                let idx2 = match cur_idx_direction {
+                    "above" => loop_idx + 1,
+                    "right" => loop_idx + line_len,
+                    "below" => loop_idx - 1,
+                    "left" => {
+                        if loop_idx.checked_sub(line_len).is_none() {
+                            return Err("wrong loop direction");
+                        }
+                        loop_idx - line_len
+                    }
+                    _ => *loop_idx,
+                };
+                (idx1, idx2)
+            }
+            LoopDirection::AntiClockwise => {
+                let idx1 = match next_idx_direction {
+                    "above" => loop_idx - 1,
+                    "right" => {
+                        if loop_idx.checked_sub(line_len).is_none() {
+                            return Err("wrong loop direction");
+                        }
+                        loop_idx - line_len
+                    }
+                    "below" => loop_idx + 1,
+                    "left" => loop_idx + line_len,
+                    _ => panic!("not a valid direction"),
+                };
+                let idx2 = match cur_idx_direction {
+                    "above" => loop_idx - 1,
+                    "right" => {
+                        if loop_idx.checked_sub(line_len).is_none() {
+                            return Err("wrong loop direction");
+                        }
+                        loop_idx - line_len
+                    }
+                    "below" => loop_idx + 1,
+                    "left" => loop_idx + line_len,
+                    _ => *loop_idx,
+                };
+                (idx1, idx2)
+            }
+        };
         if !loop_indices.contains(&idx_to_check) {
             indices_enclosed_by_and_next_to_loop.insert(idx_to_check);
         }
+        if !loop_indices.contains(&idx_to_check2) {
+            indices_enclosed_by_and_next_to_loop.insert(idx_to_check2);
+        }
     }
-    println!(
-        "indices_enclosed_by_and_next_to_loop: {:?}",
-        indices_enclosed_by_and_next_to_loop
-    );
-    let indices_enclosed_by_and_next_to_loop_vec: Vec<usize> = indices_enclosed_by_and_next_to_loop.into_iter().collect();
-    let result = find_surrounding_indices(&indices_enclosed_by_and_next_to_loop_vec, &loop_indices, line_len);
-    //let result: HashSet<usize> = result.into_iter().collect();
-    println!("result {:?}", result.len());
+    return Ok(indices_enclosed_by_and_next_to_loop.into_iter().collect());
 }
 
 fn find_surrounding_indices(
@@ -88,14 +188,16 @@ fn find_surrounding_indices(
     non_valid_indices: &Vec<usize>,
     line_len: usize,
 ) -> Vec<usize> {
-    println!("current_indices {:?}", current_indices);
-    println!("loop_indices {:?}", non_valid_indices);
     let mut indices: Vec<usize> = vec![];
     for idx in current_indices {
-        let above = idx - 1;
-        let right = idx - line_len;
-        let below = idx + 1;
-        let left = idx + line_len;
+        let left = if *idx > 0 { idx - 1 } else { *idx };
+        let above = if *idx >= line_len {
+            idx - line_len
+        } else {
+            *idx
+        };
+        let right = idx + 1;
+        let below = idx + line_len;
         if !non_valid_indices.contains(&above) && !current_indices.contains(&above) {
             indices.push(above);
         }
@@ -114,8 +216,15 @@ fn find_surrounding_indices(
     if indices.is_empty() {
         return (*current_indices).clone();
     }
-    println!("indices {:?}", indices);
-    return [current_indices.clone(), find_surrounding_indices(&indices, &[non_valid_indices.clone(), current_indices.clone()].concat(), line_len)].concat();
+    return [
+        current_indices.clone(),
+        find_surrounding_indices(
+            &indices,
+            &[non_valid_indices.clone(), current_indices.clone()].concat(),
+            line_len,
+        ),
+    ]
+    .concat();
 }
 
 fn get_pipe_position(current_idx: usize, line_len: usize, pipes_len: usize) -> PipePosition {
