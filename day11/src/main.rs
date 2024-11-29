@@ -10,29 +10,26 @@ struct Galaxy {
 fn main() {
     let input = read_to_string("input2.txt").unwrap();
     let line_len = input.lines().nth(0).unwrap().len();
-    let empty_row = '.'.to_string().repeat(line_len);
-    let mut expanded_universe_rows: Vec<String> = vec![];
-    for line in input.lines() {
-        expanded_universe_rows.push(line.to_string());
+    let additional_empty_row_col_size = 999999;
+    let mut empty_row_indices: Vec<usize> = vec![];
+    let mut empty_column_indices: Vec<usize> = vec![];
+    let mut universe_rows: Vec<String> = vec![];
+    for (idx, line) in input.lines().enumerate() {
+        universe_rows.push(line.to_string());
         if line.chars().all(|char| char == '.') {
-            expanded_universe_rows.push(empty_row.clone());
+            empty_row_indices.push(idx);
         }
     }
-    let mut columns_added: usize = 0;
     for idx in 0..line_len {
-        let current_idx = idx + columns_added;
-        if expanded_universe_rows
+        if universe_rows
             .iter()
-            .all(|row| row.chars().nth(current_idx).unwrap() == '.')
+            .all(|row| row.chars().nth(idx).unwrap() == '.')
         {
-            expanded_universe_rows
-                .iter_mut()
-                .for_each(|row| row.insert(current_idx + 1, '.'));
-            columns_added += 1;
+            empty_column_indices.push(idx);
         }
     }
     let mut galaxies: Vec<Galaxy> = vec![];
-    for (row_idx, row) in expanded_universe_rows.iter().enumerate() {
+    for (row_idx, row) in universe_rows.iter().enumerate() {
         for (col_idx, char) in row.chars().enumerate() {
             if char == '#' {
                 galaxies.push(Galaxy {
@@ -59,8 +56,31 @@ fn main() {
         .iter()
         .map(|(galaxy1, galaxy2)| {
             let x_steps = galaxy1.idx.abs_diff(galaxy2.idx);
+            let empty_col_count = empty_column_indices
+                .iter()
+                .filter(|col_idx| {
+                    if galaxy2.idx > galaxy1.idx {
+                        **col_idx > galaxy1.idx && **col_idx < galaxy2.idx
+                    } else {
+                        **col_idx > galaxy2.idx && **col_idx < galaxy1.idx
+                    }
+                })
+                .count();
             let y_steps = galaxy1.row.abs_diff(galaxy2.row);
-            x_steps + y_steps
+            let empty_row_count = empty_row_indices
+                .iter()
+                .filter(|row_idx| {
+                    if galaxy2.row > galaxy1.row {
+                        **row_idx > galaxy1.row && **row_idx < galaxy2.row
+                    } else {
+                        **row_idx > galaxy2.row && **row_idx < galaxy1.row
+                    }
+                })
+                .count();
+            x_steps
+                + y_steps
+                + (empty_col_count * additional_empty_row_col_size)
+                + (empty_row_count * additional_empty_row_col_size)
         })
         .sum();
     println!(
