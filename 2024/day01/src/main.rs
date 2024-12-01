@@ -1,4 +1,4 @@
-use std::{fs::read_to_string, iter::zip};
+use std::{collections::HashMap, fs::read_to_string, iter::zip};
 
 fn main() {
     let input = read_to_string("input2.txt").unwrap();
@@ -11,6 +11,19 @@ fn main() {
     }
     ids1.sort();
     ids2.sort();
-    let distance_between_lists: usize = zip(ids1, ids2).map(|(a, b)| a.abs_diff(b)).sum();
+    let distance_between_lists: usize = zip(&ids1, &ids2).map(|(a, b)| a.abs_diff(*b)).sum();
     println!("Distance between lists is {distance_between_lists}");
+
+    let mut second_id_list_counts: HashMap<usize, usize> = HashMap::new();
+    for id in ids2 {
+        second_id_list_counts
+            .entry(id)
+            .and_modify(|count| *count += 1)
+            .or_insert(1);
+    }
+    let similarity_score: usize = ids1
+        .iter()
+        .map(|id| id * second_id_list_counts.get(id).unwrap_or(&0))
+        .sum();
+    println!("Similarity score is {similarity_score}");
 }
